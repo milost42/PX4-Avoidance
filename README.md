@@ -159,7 +159,7 @@ echo "export GAZEBO_MODEL_PATH=${GAZEBO_MODEL_PATH}:~/catkin_ws/src/avoidance/av
 
 sudo nano ~/.bashrc
 ```
-Add the following lines to the bash file:
+Add the following lines to the bash file then save and exit:
 ```
 source /opt/ros/noetic/setup.bash
 source ~/catkin_ws/devel/setup.bash
