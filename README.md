@@ -1,5 +1,239 @@
 # Obstacle Detection and Avoidance
 
+Our instructions for installation, from setup of the Jetson Orin Nano to installation of the PX4 Avoidance software, are as follows.
+
+We flash the Jetson Orin Nano with JetPack 5.1.2 (?) as we required Ubuntu 20.04 with ROS Noetic, whereas later versions of JetPack support more recent versions of Ubuntu with ROS 2. These instructions also assume that the Jetson Orin Nano has an external Nvme storage device installed. 
+
+Jetson setup:
+1. Put Jetson in recovery mode by connecting pins 9 and 10
+2. Connect Jetson to host computer with USB cable
+3. Disconnect pins 9 and 10
+4. Download JetPack 5.1.2 without installation (and without runtime components and SDK components) via the NVIDIA SDK Manager on the host computer
+5. Disconnect Jetson and reconnect via USB in recovery mode (by connecting pins 9 and 10 again)
+6. Disconnect pins 9 and 10
+7. Using the NVIDIA SDK Manager on the host computer, install and flash JetPack 5.1.2 on the Nvme storage device
+8. With pins 9 and 10 disconnected, connect the Jetson to a monitor and an external keyboard and turn on the monitor to start the OS
+9. Set up the WiFi on the Jetson
+10. Continue with install of runtime components and SDK components (either directly on the Jetson command line or use command ifconfig to find out IP address and then ssh into Jetson from host computer):
+```
+sudo apt update
+sudo apt install nvidia-jetpack
+```
+11. Finish setup of Jetson:
+```
+sudo apt update
+sudo apt upgrade
+sudo hostname drone
+
+sudo apt install nano
+```
+Update the old name:
+```
+sudo nano /etc/hostname
+sudo nano /etc/hosts
+```
+Then reboot:
+```
+sudo reboot
+```
+12. Install OpenCV:
+```
+sudo apt update
+sudo apt upgrade
+
+sudo apt install -y g++
+sudo apt install -y cmake
+sudo apt install -y make
+sudo apt install -y wget unzip
+sudo apt install -y git
+sudo apt-get -y install libopenjpip-server
+
+sudo apt autoremove
+
+cd ~
+git clone https://github.com/opencv/opencv.git -b 4.2.0
+git clone https://github.com/opencv/opencv_contrib.git -b 4.2.0
+mkdir -p opencv_build && cd opencv_build
+cmake -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules ~/opencv
+make -j4
+sudo make install
+cd~
+```
+13. Install ROS Noetic:
+```
+sudo apt update
+sudo apt upgrade
+
+sudo sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+sudo apt install curl 
+curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | sudo apt-key add -
+sudo apt update
+
+sudo apt install ros-noetic-desktop-full
+
+source /opt/ros/noetic/setup.bash
+echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+
+sudo apt install python3-rosdep python3-rosinstall python3-rosinstall-generator python3-wstool build-essential
+
+sudo rosdep init
+rosdep update
+
+sudo apt-get update
+sudo apt-get upgrade
+```
+14. Install librealsense:
+```
+sudo apt-get update && sudo apt-get upgrade && sudo apt-get dist-upgrade
+sudo apt-get install libssl-dev libusb-1.0-0-dev libudev-dev pkg-config libgtk-3-dev
+sudo apt-get install git wget cmake build-essential
+```
+15. Unplug the RealSense camera if plugged in
+```
+sudo apt-get install libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev at
+
+git clone https://github.com/IntelRealSense/librealsense.git
+cd librealsense
+./scripts/libuvc_installation.sh --DBUILD_WITH_CUDA=true
+
+sudo apt-get update
+sudo apt-get upgrade
+```
+16. Install PX4 Avoidance
+```
+sudo apt install python3-catkin-tools
+mkdir -p ~/catkin_ws/src
+
+sudo apt-get update
+sudo apt-get upgrade
+
+sudo apt install ros-noetic-mavros ros-noetic-mavros-extras
+
+sudo apt-get update
+sudo apt-get upgrade
+
+wget https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh
+chmod +x install_geographiclib_datasets.sh
+sudo ./install_geographiclib_datasets.sh
+ 
+sudo apt install libpcl1 ros-noetic-octomap-*
+ 
+cd ~/catkin_ws/src
+git clone https://github.com/PX4/avoidance.git
+cd avoidance
+
+wget https://raw.githubusercontent.com/mavlink/mavros/master/mavros/scripts/install_geographiclib_datasets.sh
+chmod +x install_geographiclib_datasets.sh
+sudo ./install_geographiclib_datasets.sh
+ 
+sudo apt install libpcl1 ros-noetic-octomap-*
+ 
+cd ~/catkin_ws/src
+git clone https://github.com/PX4/PX4-Avoidance.git
+cd PX4-Avoidance
+
+sudo apt-get install ros-noetic-ddynamic-reconfigure
+sudo apt-get install ros-noetic-realsense2-description ros-noetic-realsense2-camera
+
+catkin build -w ~/catkin_ws --cmake-args -DCMAKE_BUILD_TYPE=Release
+
+echo "source ~/catkin_ws/devel/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+
+cd ~
+git clone https://github.com/PX4/Firmware.git --recursive
+cd ~/Firmware
+
+./Tools/setup/ubuntu.sh --no-sim-tools --no-nuttx
+sudo apt install gstreamer1.0-plugins-bad gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-ugly libgstreamer-plugins-base1.0-dev
+
+export QT_X11_NO_MITSHM=1
+make px4_sitl_default gazebo
+```
+Quit the simulation (Ctrl+C)
+```
+. ~/Firmware/Tools/simulation/gazebo-classic/setup_gazebo.bash ~/Firmware ~/Firmware/build/px4_sitl_default
+export ROS_PACKAGE_PATH=${ROS_PACKAGE_PATH}:~/Firmware
+echo "export GAZEBO_MODEL_PATH=${GAZEBO_MODEL_PATH}:~/catkin_ws/src/avoidance/avoidance/sim/models:~/catkin_ws/src/avoidance/avoidance/sim/worlds" >> ~/.bashrc
+
+sudo nano ~/.bashrc
+```
+Add the following lines:
+```
+source /opt/ros/noetic/setup.bash
+source ~/catkin_ws/devel/setup.bash
+. ~/Firmware/Tools/simulation/gazebo-classic/setup_gazebo.bash ~/Firmware ~/Firmware/build/px4_sitl_default
+export GAZEBO_MODEL_PATH=${GAZEBO_MODEL_PATH}:~/catkin_ws/src/avoidance/avoidance/sim/models:~/catkin_ws/src/avoidance/avoidance/sim/worlds
+export ROS_PACKAGE_PATH=${ROS_PACKAGE_PATH}:~/Firmware
+```
+17. Install PCL
+```
+cd ~
+git clone https://github.com/PointCloudLibrary/pcl.git
+cd pcl
+git checkout 0c44b5df4345c945810c8a96d047b6cb325eed0d
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j4
+sudo make install
+```
+18. Install other dependencies
+```
+cd catkin_ws/src/
+git clone https://github.com/ros-drivers/vrpn_client_ros.git
+git clone https://github.com/ethz-asl/vicon_bridge
+git clone https://github.com/PX4/disparity_to_point_cloud.git
+
+cd vrpn_client_ros
+sudo apt-get update
+rosdep install --from-paths .
+cd ..
+catkin build -w ~/catkin_ws --cmake-args -DCMAKE_BUILD_TYPE=Release
+cd ~
+
+cd vicon_bridge
+sudo apt-get update
+rosdep install --from-paths .
+cd ..
+catkin build -w ~/catkin_ws --cmake-args -DCMAKE_BUILD_TYPE=Release
+cd ~
+
+cd disparity_to_point_cloud
+sudo apt-get update
+rosdep install --from-paths .
+cd ..
+catkin build -w ~/catkin_ws --cmake-args -DCMAKE_BUILD_TYPE=Release
+cd ~
+
+ls -tl /var/lib/dpkg/info/ | grep list > installed-packages.txt
+
+sudo apt-get -y install gcc-arm-none-eabi
+```
+19. Set up the Firmware to be compatible with Pixhawk 6C
+```
+cd ~/Firmware
+make px4_fmu-v6c_default
+```
+20. Connect Jetson to flight controller and connect RealSense to Jetson if not already connected
+21. Find the serial number of the RealSense
+```
+roslaunch realsense2_camera rs_camera.launch
+```
+22. Set up hardware deployment:
+```
+export CAMERA_CONFIGS="camera_main,realsense,318122300401,0,0,0,0,0,0"
+export DEPTH_CAMERA_FRAME_RATE=30
+export VEHICLE_CONFIG=~/catkin_ws/src/avoidance/local_planner/resource/px4_config.yaml
+cd ~/catkin_ws/src/avoidance/
+./tools/generate_launchfile.sh.deprecated
+
+roslaunch local_planner avoidance.launch fcu_url:=/dev/ttyUSB0:921600
+```
+
+***EVERYTHING BELOW THIS LINE IS THE ORIGINAL README - PLEASE ALSO READ FOR INFO*** 
+
+
 > We'd welcome community support to maintain and update the project.
 > If you're interested in contributing, please contact the [PX4 development team through normal channels](http://docs.px4.io/main/en/contribute/support.html#forums-and-chat).
 
